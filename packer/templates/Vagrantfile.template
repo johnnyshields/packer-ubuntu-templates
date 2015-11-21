@@ -37,4 +37,9 @@ Vagrant.configure('2') do |config|
       vm.vmx['sound.present'] = 'FALSE'
     end
   end
+
+  config.vm.provider :parallels do |vm, override|
+    vm.check_guest_tools = true
+    vm.optimize_power_consumption = false
+  end
 end

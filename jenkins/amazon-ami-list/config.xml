@@ -1,0 +1,178 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>List available Amazon Machine Image (AMI).</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>Platform</name>
+          <description>The target platform for which query? Possible choices are:
+
+- x86_64 (amd64) for 64bit platform
+- x86 (i386) for 32bit platform</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>x86_64</string>
+              <string>i386</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>Type</name>
+          <description>What type of the Amazon Machine Image (AMI) query for? Possible choices are:
+
+- Elastic Block Store (EBS) backed image
+- Instance Store (with dedicated root partition)</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>Elastic Block Store (EBS)</string>
+              <string>Instance Store</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>Public</name>
+          <description>Show only publicly available Amazon Machine Image (AMI) images.</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Account</name>
+          <description>Amazon Web Services (AWS) account identifier (ID).</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>AwsAccessKey</name>
+          <description>Amazon Web Services (AWS) user access key.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>AwsSecretAccessKey</name>
+          <description>Amazon Web Services (AWS) user secret access key.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Region</name>
+          <description>Region in which to query for Amazon Machine Image (AMI) image.</description>
+          <defaultValue>eu-west-1</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>Everything</name>
+          <description>Ignore filters such as type, platform and don&apos;t check if Amazon Machine Image (AMI) is publicly available.
+
+WARNING: This list all available images for given Amazon Web Services (AWS) account in a given region.</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <hudson.plugins.copyartifact.CopyArtifactPermissionProperty plugin="copyartifact@1.34">
+      <projectNameList/>
+    </hudson.plugins.copyartifact.CopyArtifactPermissionProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.22">
+      <autoRebuild>false</autoRebuild>
+    </com.sonyericsson.rebuild.RebuildSettings>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>true</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash -eu
+
+export PATH=${PATH}:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+_string_to_lower() {
+    echo &quot;$*&quot; | tr &apos;[:upper:]&apos; &apos;[:lower:]&apos;
+}
+
+_sanitize_platform() {
+    case &quot;$1&quot; in
+        x86|i?86)
+            echo &apos;i386&apos;
+        ;;
+        x86_64|amd64)
+            echo &apos;x86_64&apos;
+        ;;
+    esac
+}
+
+_sanitize_type() {
+    case $(_string_to_lower &quot;$1&quot;) in
+        elastic\ block\ store*)
+            echo &apos;ebs&apos;
+        ;;
+        instance\ store)
+            echo &apos;instance-store&apos;
+        ;;
+    esac
+}
+
+_sanitize_boolean() {
+    case $(_string_to_lower &quot;$1&quot;) in
+        yes|true|1)
+            echo &apos;true&apos;
+        ;;
+        no|false|0)
+            echo &apos;false&apos;
+        ;;
+    esac
+}
+
+PLATFORM=$(_sanitize_platform &quot;$Platform&quot;)
+TYPE=$(_sanitize_type &quot;$Type&quot;)
+PUBLIC=$(_sanitize_boolean &quot;$Public&quot;)
+EVERTHING=$(_sanitize_boolean &quot;$Everything&quot;)
+
+AWS_ACCOUNT_ID=&quot;$Account&quot;
+AWS_ACCESS_KEY_ID=&quot;$AwsAccessKey&quot;
+AWS_SECRET_ACCESS_KEY=&quot;$AwsSecretAccessKey&quot;
+
+REGION=$(_string_to_lower &quot;$Region&quot;)
+
+export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+
+FILTERS=(
+  Name=state,Values=available
+  Name=image-type,Values=machine
+  Name=virtualization-type,Values=hvm
+  Name=tag-key,Values=RootDeviceType
+  Name=tag-value,Values=ebs,instance-store
+  Name=owner-id,Values=${AWS_ACCOUNT_ID}
+$(if [[ $EVERTHING == &apos;false&apos; ]]; then
+  cat &lt;&lt;EOF
+Name=is-public,Values=${PUBLIC}
+Name=root-device-type,Values=${TYPE}
+Name=architecture,Values=${PLATFORM}
+EOF
+  fi)
+)
+
+FIELDS=(
+  Name:Name
+  Description:Description
+  ImageId:ImageId
+  Public:Public
+  RootDeviceType:RootDeviceType
+  CreationDate:Tags[?Key==\`CreationDate\`]\|[0].Value
+  Version:Tags[?Key==\`Version\`]\|[0].Value
+)
+
+aws --color=off ec2 describe-images \
+  --filters $(echo &quot;${FILTERS[@]}&quot;) \
+  --query $(echo &quot;Images[*].{$(IFS=,; echo &quot;${FIELDS[*]}&quot;)}&quot;) \
+  --region $REGION \
+  --output json</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.1">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+  </buildWrappers>
+</project>

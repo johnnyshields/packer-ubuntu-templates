@@ -1,0 +1,366 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Build various Vagrant boxes using a set of Packer templates.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>Ubuntu</name>
+          <description>Which Ubuntu flavour to build? Possible choices are:
+
+- Trusty (14.04)
+- Precise (12.04)
+
+Note: Ubuntu Trusty would be the preferred choice.</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>Trusty</string>
+              <string>Precise</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>Platform</name>
+          <description>The target platform for which to build? Possible choices are:
+
+- x86_64 (amd64) for 64bit platform
+- x86 (i386) for 32bit platform
+
+Note: Docker is currently NOT supported on 32 bit platforms.</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>x86_64</string>
+              <string>i386</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>Hypervisor</name>
+          <description>What hypervisor to use for building the Vagrant box? Possible choices are:
+
+- VirtualBox
+- VMWare (a valid license is required)
+
+
+Note: The VMWare build should work with both the Fusion and Workstation edition.</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>VirtualBox</string>
+              <string>VMWare</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>Build</name>
+          <description>What type of Vagrant box to create? Possible choices are:
+
+- Base (a minimal build)
+- Salt (includes the desired version of Salt)
+- Docker (includes latest version of Docker)
+- Docker+Salt (includes the desired version of Salt and latest version of Docker)</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>Base</string>
+              <string>Salt</string>
+              <string>Docker</string>
+              <string>Docker+Salt</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>Everything</name>
+          <description>Build each of the available build types for a given platform and hypervisor?
+
+Note: This will ignore pre-selected build type (see option above).
+
+WARNING: This might take a while to complete.</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>Clean</name>
+          <description>Attempt to clean any broken virtual machines prior to starting the build process?</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>AwsAccessKey</name>
+          <description>Amazon Web Services (AWS) user access key.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>AwsSecretAccessKey</name>
+          <description>Amazon Web Services (AWS) user secret access key.
+</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Bucket</name>
+          <description>Name of the S3 bucket where the resulting Vagrant box is going to be uploaded to.</description>
+          <defaultValue>opg-ops-images/vagrant</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Region</name>
+          <description>Region where the Amazon Web Services (AWS) user and the S3 bucket were created.</description>
+          <defaultValue>eu-west-1</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>AwsCli</name>
+          <description>Which version of AWS command line tools (CLI) to install?</description>
+          <defaultValue>1.7.23</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Docker</name>
+          <description>Which version of Docker to install?
+
+Note: This is only applicable to builds intending to install Docker.</description>
+          <defaultValue>1.6.0</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>DockerCompose</name>
+          <description>Which version of Docker Compose to install?
+
+Note: This is only applicable to builds intending to install Docker.</description>
+          <defaultValue>1.2.0</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Salt</name>
+          <description>Which version of Salt to install (this includes both Salt Master and Minion)?
+
+Note: This is only applicable to builds intending to install Salt.</description>
+          <defaultValue>2014.7.5</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.22">
+      <autoRebuild>false</autoRebuild>
+    </com.sonyericsson.rebuild.RebuildSettings>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.3.4">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>git@github.com:ministryofjustice/opg-os-images.git</url>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/master</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions/>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash -eu
+
+export PATH=${PATH}:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+_string_to_lower() {
+    echo &quot;$*&quot; | tr &apos;[:upper:]&apos; &apos;[:lower:]&apos;
+}
+
+_sanitize_platform() {
+    case &quot;$1&quot; in
+        x86|i?86)
+            echo &apos;i386&apos;
+        ;;
+        x86_64|amd64)
+            echo &apos;amd64&apos;
+        ;;
+    esac
+}
+
+_sanitize_hypervisor() {
+    case $(_string_to_lower &quot;$1&quot;) in
+        virtualbox)
+            echo &apos;virtualbox&apos;
+            ;;
+        vmware)
+            echo &apos;vmware&apos;
+        ;;
+    esac
+}
+
+_sanitize_ubuntu() {
+    case $(_string_to_lower &quot;$1&quot;) in
+        precise)
+            echo &apos;12.04&apos;
+        ;;
+        trusty)
+            echo &apos;14.04&apos;
+        ;;
+    esac
+}
+
+_sanitize_build() {
+    case $(_string_to_lower &quot;$1&quot;) in
+        salt)
+            echo &apos;salt&apos;
+        ;;
+        docker)
+            echo &apos;docker&apos;
+        ;;
+        docker\+salt)
+            echo &apos;docker-salt&apos;
+        ;;
+    esac
+}
+
+_sanitize_boolean() {
+    case $(_string_to_lower &quot;$1&quot;) in
+        yes|true|1)
+            echo &apos;yes&apos;
+        ;;
+        no|false|0)
+            echo &apos;no&apos;
+        ;;
+    esac
+}
+
+UBUNTU=$(_sanitize_ubuntu &quot;$Ubuntu&quot;)
+PLATFORM=$(_sanitize_platform &quot;$Platform&quot;)
+HYPERVISOR=$(_sanitize_hypervisor &quot;$Hypervisor&quot;)
+BUILD=$(_sanitize_build &quot;$Build&quot;)
+EVERTHING=$(_sanitize_boolean &quot;$Everything&quot;)
+CLEAN=$(_sanitize_boolean &quot;$Clean&quot;)
+
+AWS_ACCESS_KEY_ID=&quot;$AwsAccessKey&quot;
+AWS_SECRET_ACCESS_KEY=&quot;$AwsSecretAccessKey&quot;
+AWS_DEFAULT_REGION=$(_string_to_lower &quot;$Region&quot;)
+
+S3_BUCKET=$(_string_to_lower &quot;$Bucket&quot;)
+
+AWSCLI_VERSION=&quot;$AwsCli&quot;
+
+DOCKER_VERSION=&quot;$Docker&quot;
+DOCKER_COMPOSE_VERSION=&quot;$DockerCompose&quot;
+
+SALT_VERSION=&quot;$Salt&quot;
+SALT_SERVICES=&apos;minion,master&apos;
+
+export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY      \
+       AWS_DEFAULT_REGION EC2_SOURCE_AMI EC2_VPC_ID \
+       EC2_SUBNET_ID S3_BUCKET AWSCLI_VERSION       \
+       DOCKER_VERSION DOCKER_COMPOSE_VERSION        \
+       SALT_VERSION SALT_SERVICES BUILD_NUMBER
+
+if [[ $CLEAN == &apos;yes&apos; ]]; then
+    declare -A VMS=()
+
+    case &quot;$HYPERVISOR&quot; in
+        virtualbox*)
+            for o in runningvms vms; do
+                for v in $(VBoxManage list $o 2&gt;/dev/null | awk &apos;/inaccessible|packer_.+/ { print $2 }&apos;); do
+                    [[ ${VMS[$v]-} ]] || VMS[$v]=1
+                done
+            done
+
+            if [[ ${#VMS[*]} &gt; 0 ]]; then
+                for v in &quot;${!VMS[@]}&quot;; do
+                    {
+                        VBoxManage controlvm $v poweroff
+                        VBoxManage discardstate $v
+                        VBoxManage unregistervm $v --delete
+                    } 2&gt; /dev/null || true
+                done
+            fi
+
+            if [[ -f &quot;${HOME}/VirtualBox VMs&quot; ]]; then
+                find &quot;${HOME}/VirtualBox VMs&quot; -type d -name &apos;packer_*&apos; -print0 | \
+                    xargs -0 -i&apos;{}&apos; rm -rf &apos;{}&apos;
+            fi
+        ;;
+        vmware*)
+            if [[ -d ${WORKSPACE}/packer/artifacts/${HYPERVISOR} ]]; then
+                for f in $(find ${WORKSPACE}/packer/artifacts/${HYPERVISOR} -type f -name &apos;*.vmx&apos;); do
+                    [[ ${VMS[$f]-} ]] || VMS[$f]=1
+                done
+            fi
+
+            for v in $(vmrun list | LANG=C grep &apos;vmx$&apos;); do
+                [[ ${VMS[$v]-} ]] || VMS[$v]=1
+            done
+
+            if [[ ${#VMS[*]} &gt; 0 ]]; then
+                for v in &quot;${!VMS[@]}&quot;; do
+                    {
+                        vmrun stop $v hard
+                        [[ ! $(vmrun unregister --help &amp;&gt;/dev/null ) ]] || vmrun unregister $v
+                        vmrun deleteVM $v
+                    } 2&gt; /dev/null || true
+                done
+            fi
+        ;;
+    esac
+
+    rm -rf ${WORKSPACE}/images/${HYPERVISOR} \
+           ${WORKSPACE}/packer/artifacts/${HYPERVISOR}
+fi
+
+pushd ${WORKSPACE}/packer &amp;&gt;/dev/null
+
+TEMPLATES=()
+if [[ $EVERTHING == &apos;yes&apos; ]]; then
+    TEMPLATE=&quot;ubuntu-${UBUNTU}-${PLATFORM}&quot;
+    for f in $(find . -type f -name &apos;*.json&apos; | LANG=C grep -- &quot;$TEMPLATE&quot; | \
+               awk &apos;{ print length, $0 }&apos; | sort -g | cut -d&apos; &apos; -f2-); do
+        TEMPLATES+=( $f )
+    done
+else
+  TEMPLATE=&quot;ubuntu-${UBUNTU}-${PLATFORM}.json&quot;
+  if [[ -n $BUILD ]]; then
+      TEMPLATE=&quot;ubuntu-${UBUNTU}-${PLATFORM}-${BUILD}.json&quot;
+  fi
+  TEMPLATES+=( $TEMPLATE )
+fi
+
+for f in ${TEMPLATES[@]}; do
+    BUILD_NAME=&quot;${f//.json*}&quot;
+    BUILD_NAME=&quot;${BUILD_NAME##*/}&quot;
+
+    printf &quot;\n*** VALIDATING: %s\n&quot; &quot;$BUILD_NAME&quot;
+    packer validate -only=${HYPERVISOR}-iso $f
+done
+
+for f in ${TEMPLATES[@]}; do
+    BUILD_NAME=&quot;${f//.json*}&quot;
+    BUILD_NAME=&quot;${BUILD_NAME##*/}&quot;
+
+    printf &quot;\n*** BUILDING: %s\n&quot; &quot;$BUILD_NAME&quot;
+    packer build -only=${HYPERVISOR}-iso $f
+
+    pushd ${WORKSPACE}/images/${HYPERVISOR} &amp;&gt;/dev/null
+
+    BOX_FILE=&quot;${BUILD_NAME}.box&quot;
+
+    printf &quot;\n*** UPLOADING: %s (%s)\n&quot; &quot;$BUILD_NAME&quot; &quot;$BOX_FILE&quot;
+    aws --color=off s3 cp $BOX_FILE s3://${S3_BUCKET}/${HYPERVISOR}/${BOX_FILE}
+
+    popd &amp;&gt;/dev/null
+
+    printf &quot;\n\n&quot;
+done
+
+popd &amp;&gt;/dev/null
+
+rm -rf ${WORKSPACE}/images/${HYPERVISOR} \
+       ${WORKSPACE}/packer/artifacts/${HYPERVISOR}</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.5.15"/>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.1">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+  </buildWrappers>
+</project>

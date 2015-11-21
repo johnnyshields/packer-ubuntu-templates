@@ -1,0 +1,108 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Remove (deregister) Amazon Machine Image (AMI).</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>Image</name>
+          <description>An identifier (ID) of the Amazon Machine Image (AMI) to remove.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>AwsAccessKey</name>
+          <description>Amazon Web Services (AWS) user access key.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>AwsSecretAccessKey</name>
+          <description>Amazon Web Services (AWS) user secret access key.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>Region</name>
+          <description>Region in which to query for Amazon Machine Image (AMI) image.</description>
+          <defaultValue>eu-west-1</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <hudson.plugins.copyartifact.CopyArtifactPermissionProperty plugin="copyartifact@1.34">
+      <projectNameList/>
+    </hudson.plugins.copyartifact.CopyArtifactPermissionProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.22">
+      <autoRebuild>false</autoRebuild>
+    </com.sonyericsson.rebuild.RebuildSettings>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>true</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash -eu
+
+export PATH=${PATH}:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+_string_to_lower() {
+    echo &quot;$*&quot; | tr &apos;[:upper:]&apos; &apos;[:lower:]&apos;
+}
+
+_sanitize_type() {
+    case $(_string_to_lower &quot;$1&quot;) in
+        elastic\ block\ store*)
+            echo &apos;ebs&apos;
+        ;;
+        instance\ store)
+            echo &apos;instance-store&apos;
+        ;;
+    esac
+}
+
+AMI_ID=$(_string_to_lower &quot;$Image&quot;)
+
+AWS_ACCESS_KEY_ID=&quot;$AwsAccessKey&quot;
+AWS_SECRET_ACCESS_KEY=&quot;$AwsSecretAccessKey&quot;
+
+REGION=$(_string_to_lower &quot;$Region&quot;)
+
+export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+
+FILTERS=(
+  Name=image-type,Values=machine
+  Name=virtualization-type,Values=hvm
+  Name=image-id,Values=${AMI_ID}
+)
+
+OUTPUT=$(aws --color=off ec2 describe-images \
+             --filters $(echo &quot;${FILTERS[@]}&quot;) \
+             --query &apos;Images[*].[Name,RootDeviceType,ImageLocation]&apos; \
+             --region $REGION \
+             --output text | sed -e &apos;s/\s/,/g&apos; 2&gt;/dev/null)
+
+aws --color=off ec2 deregister-image \
+    --image-id $AMI_ID \
+    --region $REGION
+
+if echo $OUTPUT | grep -q &apos;instance-store&apos; &amp;&gt; /dev/null; then
+  S3_BUCKET=${OUTPUT##*,}
+  S3_BUCKET=${S3_BUCKET%/*}
+
+  aws --color=off s3 rm s3://${S3_BUCKET} \
+      --recursive \
+      --quiet
+fi
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.1">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+  </buildWrappers>
+</project>
